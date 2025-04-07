@@ -1,0 +1,60 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# 假设状态是一个 4 维向量（如：小车位置、速度、杆角度、角速度）
+state_dim = 4
+action_dim = 2  # 离散动作：0 = 左推，1 = 右推
+
+# 状态输入（float tensor）
+state = torch.tensor([0.1, -0.2, 0.05, 0.3], dtype=torch.float32)  # shape: [4]
+
+# 奖励输入（float）
+reward = torch.tensor(1.0, dtype=torch.float32)
+
+# 定义一个简单的策略网络（policy network）
+class PolicyNetwork(nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super(PolicyNetwork, self).__init__()
+        self.fc1 = nn.Linear(state_dim, 128)
+        self.fc2 = nn.Linear(128, action_dim)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        logits = self.fc2(x)
+        return logits  # 输出动作 logits，用于 softmax 后采样动作
+
+# 初始化策略网络
+policy_net = PolicyNetwork(state_dim, action_dim)
+
+# 前向传播：从状态预测动作 logits
+logits = policy_net(state)
+
+# 输出动作概率
+action_probs = F.softmax(logits, dim=-1)
+
+# 采样一个动作（离散）
+action_dist = torch.distributions.Categorical(action_probs)
+action = action_dist.sample()
+
+print("输入状态：", state)
+print("输出动作概率：", action_probs)
+print("选中的动作：", action.item())  # .item() 变成 int
+
+# 假设我们还用到了 Q 网络来估计 Q 值
+class QNetwork(nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(state_dim, 128)
+        self.fc2 = nn.Linear(128, action_dim)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        q_values = self.fc2(x)
+        return q_values
+
+# 输出 Q 值（每个动作一个 Q 值）
+q_net = QNetwork(state_dim, action_dim)
+q_values = q_net(state)
+
+print("Q 值（每个动作的期望回报）：", q_values)
